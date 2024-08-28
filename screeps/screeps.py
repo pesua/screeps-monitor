@@ -3,12 +3,14 @@ import websocket
 
 
 class Connection(object):
-    def __init__(self, email, password, ptr=False):
+    def __init__(self, email, password, room, ptr=False):
         self.email = email
         self.password = password
         self.url = 'https://screeps.com/api'
         self.url_wss = 'wss://screeps.com/socket/websocket'
         self.token = None
+        self.room = room
+        self.auth_ok = False
         if ptr:
             self.url = 'https://screeps.com/ptr/api'
             self.url_wss = 'wss://screeps.com/ptr/socket/websocket'
@@ -50,15 +52,21 @@ class Connection(object):
     # Websocket connection
     def on_message(self, ws, message):
         if (message.startswith('auth ok')):
-            ws.send('subscribe user:' + self.user_id + '/console')
+            self.auth_ok = True            
+            # ws.send(f'subscribe user:{self.user_id}/console')
+            ws.send(f'subscribe user:{self.user_id}/cpu')
+            ws.send(f'subscribe room:{self.room}')
             return
-
-        self.messageCallback(message)
+        
+        if self.auth_ok:
+            self.messageCallback(message)
+        else:
+            print(message)
 
     def on_error(self, ws, error):
         raise Exception(error)
 
-    def on_close(self, ws):
+    def on_close(self, ws, close_status_code, close_msg):
         raise Exception("### closed ###")
 
     def on_open(self, ws):
