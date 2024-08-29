@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from store import Store
 import os
 import json
+import traceback
 
 load_dotenv()
 
@@ -25,6 +26,8 @@ def report_room(message):
     spawn_energy = 0
     spawn_energy_capacity = 0
     for id, element in message['objects'].items():
+        if element is None:
+            continue
         object_type = element.get('type')
         match object_type:
             case 'source':
@@ -102,6 +105,10 @@ def sysout(message):
             report_cpu(parsed_message[1])
     except json.JSONDecodeError:
         print(f"Failed to parse message as JSON: {message}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {str(e)}")
+        print("Stacktrace:")
+        traceback.print_exc()
 
 
 conn = Connection(os.getenv('SCREEPS_USERNAME'), os.getenv('SCREEPS_PASSWORD'),'shard3/W48N55')
