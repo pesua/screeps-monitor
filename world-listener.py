@@ -70,7 +70,8 @@ def report_room(message):
                         if creep.get('type') == 'creep' and creep.get('name') == creep_name:
                             del world_state[creep_id]
                             break  
-
+                pass
+            case 'constructionSite':
                 pass
             case _:
                 print(f"Unknown element type: {entity.get('type')}")
