@@ -11,7 +11,7 @@ import traceback
 load_dotenv()
 
 store = Store()
-old_vals = {}
+world_state = {}
 
 
 def report_cpu(message):
@@ -21,81 +21,108 @@ def report_cpu(message):
 def report_room(message):
     game_time = message.get('gameTime')
     print(game_time)
-    creeps = 0
-    dropped_energy = 0
-    stored_energy = 0
-    stored_energy_capacity = 0
-    spawn_energy = 0
-    spawn_energy_capacity = 0
-    for id, element in message['objects'].items():
-        if element is None:
+    energy_harvested = 0
+    for id, entity_update in message['objects'].items():
+        if entity_update is None:
             continue
-        object_type = element.get('type')
-        match object_type:
+        if id not in world_state:
+            world_state[id] = entity_update
+        entity = world_state[id]
+        match entity.get('type'):
             case 'source':
-                current_energy = element.get('energy')
-                previous_energy = old_vals.get(id, current_energy)
-                energy_difference = current_energy - previous_energy
-                energy_difference = 0 if energy_difference < 0 else energy_difference
-                
-                store.write_point('source-energy', {'id': id}, {
-                    'energy': current_energy,
-                    'energy_harvested': energy_difference
-                })
-                
-                old_vals[id] = current_energy
+                energy_difference = entity.get('energy') - entity_update.get('energy')
+                energy_harvested += 0 if energy_difference < 0 else energy_difference
             case 'mineral':
-                store.write_point('mineral', {'id': element.get('_id'), 'type': element.get('mineralType')}, {
-                    'amount': element.get('mineralAmount')
+                store.write_point('mineral', {'id': entity_update.get('_id'), 'type': entity.get('mineralType')}, {
+                    'amount': entity_update.get('mineralAmount')
                 })
             case 'constructedWall':
                 pass
             case 'road':
                 pass
             case 'energy':
-                dropped_energy += element.get('energy')
+                pass
             case 'creep':
-                creeps += 1
+                pass
             case 'container':
-                stored_energy += element.get('store').get('energy')
-                stored_energy_capacity += element.get('storeCapacity')
+                pass
             case 'extension':
-                spawn_energy += element.get('store').get('energy')
-                spawn_energy_capacity += element.get('storeCapacityResource').get('energy')
+                pass
             case 'rampart':
                 pass
             case 'tower':
                 pass
             case 'controller':
-                current_progress = element.get('progress')
-                previous_progress = old_vals.get(id, current_progress)
-                progress_difference = current_progress - previous_progress
+                progress_difference = entity_update.get('progress') - entity.get('progress')
                 
                 store.write_point('controller', {'id': id}, {
-                    'progress': current_progress,
+                    'progress': entity_update.get('progress'),
                     'progress_difference': progress_difference,
-                    'level': element.get('level'),
-                    'safeModeAvailable': element.get('safeModeAvailable')
+                    'level': entity_update.get('level') or entity.get('level'),
+                    'safeModeAvailable': entity_update.get('safeModeAvailable')
                 })
-                
-                old_vals[id] = current_progress
             case 'spawn':
-                spawn_energy += element.get('store').get('energy')
-                spawn_energy_capacity += element.get('storeCapacityResource').get('energy')
-            case None:  # some junk, I haven't found what it means
                 pass
             case 'tombstone':
+                creep_name = entity.get('name')
+                if creep_name:
+                    for creep_id, creep in world_state.items():
+                        if creep.get('type') == 'creep' and creep.get('name') == creep_name:
+                            del world_state[creep_id]
+                            break  
+
                 pass
             case _:
-                print(f"Unknown element type: {object_type}")
+                print(f"Unknown element type: {entity.get('type')}")
+
+        for key, value in entity_update.items():
+            entity[key] = value
+    
+    total_dropped_energy = 0
+    for id, entity in world_state.items():
+        if entity.get('type') == 'energy':
+            total_dropped_energy += entity.get('energy', 0)
+    
+
+    spawn_energy = 0
+    spawn_energy_capacity = 0
+    for id, entity in world_state.items():
+        if entity.get('type') == 'spawn' or entity.get('type') == 'extension':            
+            spawn_energy += entity.get('store').get('energy')
+            spawn_energy_capacity += entity.get('storeCapacityResource').get('energy')
+
+
+    stored_energy = 0
+    stored_energy_capacity = 0
+    for id, entity in world_state.items():
+        if entity.get('type') == 'spawn' or entity.get('type') == 'container':            
+            stored_energy += entity.get('store').get('energy')
+            stored_energy_capacity += entity.get('storeCapacity') or entity.get('storeCapacityResource').get('energy')
+
+    tower_energy = 0
+    tower_energy_capacity = 0
+    for id, entity in world_state.items():
+        if entity.get('type') == 'tower':
+            tower_energy += entity.get('store').get('energy')
+            tower_energy_capacity += entity.get('storeCapacityResource').get('energy')
+
+    creeps = 0
+    for id, entity in world_state.items():
+        if entity.get('type') == 'creep':
+            creeps+=1;
+
     store.write_point('energy', {}, {
         'creeps': creeps,
-        'dropped_energy': dropped_energy,
+        'dropped_energy': total_dropped_energy,
         'stored_energy': stored_energy,
         'stored_energy_capacity': stored_energy_capacity,
         'spawn_energy': spawn_energy,
-        'spawn_energy_capacity': spawn_energy_capacity
+        'spawn_energy_capacity': spawn_energy_capacity,
+        'energy_harvested': energy_harvested,
+        'tower_energy': tower_energy,
+        'tower_energy_capacity': tower_energy_capacity,
     })
+
 
 
 def sysout(message):
