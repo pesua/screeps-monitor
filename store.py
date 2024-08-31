@@ -1,6 +1,5 @@
 import os
 from influxdb_client_3 import InfluxDBClient3, Point
-from six.moves import _thread
 
 class Store:
     def __init__(self):

@@ -1,3 +1,5 @@
+import time
+
 from screeps.screeps import Connection
 
 from dotenv import load_dotenv
@@ -111,5 +113,13 @@ def sysout(message):
         traceback.print_exc()
 
 
-conn = Connection(os.getenv('SCREEPS_USERNAME'), os.getenv('SCREEPS_PASSWORD'),'shard3/W48N55')
-conn.startWebSocket(sysout)
+while True:
+    try:
+        conn = Connection(os.getenv('SCREEPS_USERNAME'), os.getenv('SCREEPS_PASSWORD'), 'shard3/W48N55')
+        conn.startWebSocket(sysout)
+    except Exception as e:
+        print(f"Connection lost: {str(e)}")
+        print("Attempting to reconnect in 5 seconds...")
+        time.sleep(5)
+    else:
+        break
