@@ -64,11 +64,12 @@ def report_room(message):
             case 'spawn':
                 pass
             case 'tombstone':
-                creep_name = entity.get('name')
+                creep_name = entity.get('creepName')
                 if creep_name:
                     for creep_id, creep in world_state.items():
                         if creep.get('type') == 'creep' and creep.get('name') == creep_name:
                             del world_state[creep_id]
+                            del world_state[id]
                             break  
                 pass
             case 'constructionSite':
